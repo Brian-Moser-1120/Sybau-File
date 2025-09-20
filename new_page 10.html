@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>/// ACCESSING GEOLOCATION_MATRIX ///</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #000;
+            --main-text-color: #00FF00; /* Bright green */
+            --secondary-text-color: #008000; /* Darker green for labels */
+            --accent-color: #00FFFF; /* Cyan for emphasis */
+            --glow-color: rgba(0, 255, 0, 0.6);
+            --border-color: #004000;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: var(--bg-color);
+            color: var(--main-text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* Hide scrollbars if content slightly overflows due to effects */
+            position: relative;
+        }
+
+        /* Scanline effect overlay */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 1px,
+                rgba(0, 0, 0, 0.1) 1px,
+                rgba(0, 0, 0, 0.3) 2px
+            );
+            pointer-events: none; /* Allows interaction with elements beneath */
+            z-index: -1; /* Puts it behind content */
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 -1000px; }
+        }
+
+        .terminal-window {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--border-color);
+            box-shadow: 0 0 15px var(--glow-color);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 700px;
+            width: 100%;
+            position: relative;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            color: var(--accent-color);
+            text-shadow: 0 0 8px var(--accent-color);
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            overflow: hidden; /* For typing effect */
+            white-space: nowrap; /* For typing effect */
+            border-right: 0.15em solid var(--main-text-color); /* The blinking cursor */
+            animation: 
+                typing 3s steps(40, end),
+                blink-caret 0.75s step-end infinite;
+        }
+
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: var(--main-text-color); }
+        }
+
+        hr {
+            border: none;
+            height: 1px;
+            background-color: var(--border-color);
+            box-shadow: 0 0 5px var(--glow-color);
+            margin: 25px 0;
+        }
+
+        .console-output {
+            margin-top: 20px;
+        }
+
+        .data-line {
+            display: flex;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .data-line .label {
+            color: var(--secondary-text-color);
+            min-width: 150px;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-line .value {
+            color: var(--main-text-color);
+            flex-grow: 1;
+            word-break: break-all; /* Ensures long values wrap */
+        }
+
+        .data-line:hover {
+            text-shadow: 0 0 5px var(--main-text-color);
+            transform: scale(1.01);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+
+        /* Glitch effect on hover for data lines */
+        .data-line:hover .value {
+            animation: glitch 0.3s infinite;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        #initial-boot-sequence {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--main-text-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1em;
+            z-index: 1000;
+            text-align: left; /* Aligns fake terminal lines */
+            padding-left: 50px; /* Indent fake terminal lines */
+            box-sizing: border-box;
+        }
+
+        .boot-line {
+            white-space: pre; /* Preserves spaces and newlines */
+            opacity: 0;
+            animation: typeLine 0.1s forwards;
+            padding: 2px 0;
+        }
+
+        .boot-line.blinking-cursor::after {
+            content: '_';
+            animation: blink-cursor 0.75s step-end infinite;
+        }
+
+        @keyframes typeLine {
+            from { width: 0; opacity: 0; }
+            to { width: 100%; opacity: 1; }
+        }
+
+        @keyframes blink-cursor {
+            from, to { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        #status-message {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 1.2em;
+            color: var(--accent-color);
+            text-shadow: 0 0 8px var(--accent-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .disclaimer {
+            font-size: 0.8em;
+            color: var(--secondary-text-color);
+            text-align: center;
+            margin-top: 30px;
+            text-shadow: none; /* Remove text shadow for disclaimer */
+        }
+    </style>
+</head>
+<body>
+    <div id="initial-boot-sequence">
+        <div class="boot-line" style="animation-delay: 0s;">INITIALIZING...</div>
+        <div class="boot-line" style="animation-delay: 1s;">> Establishing secure connection to GEOLOC_SVC.v2.1...</div>
+        <div class="boot-line" style="animation-delay: 2s;">> Authenticating via IP-HEX protocol...</div>
+        <div class="boot-line" style="animation-delay: 3s;">> SCANNING REMOTE TARGET: INITIATED</div>
+        <div class="boot-line blinking-cursor" style="animation-delay: 4s;">> PINGING GLOBAL DATALINK...</div>
+    </div>
+
+    <div class="terminal-window" style="display: none;">
+        <h1>/// ACCESSING GEOLOCATION_MATRIX ///</h1>
+        <hr>
+        <div id="status-message">ANALYZING PACKET DATA...</div>
+        <div class="console-output" id="data-container" style="display: none;">
+            <div class="data-line">
+                <span class="label">IP Address:</span>
+                <span id="ip_address" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Country:</span>
+                <span id="country_name" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Region:</span>
+                <span id="region_name" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">City:</span>
+                <span id="city_name" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Latitude:</span>
+                <span id="latitude" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Longitude:</span>
+                <span id="longitude" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Postal Code:</span>
+                <span id="postal_code" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">Timezone:</span>
+                <span id="timezone" class="value"></span>
+            </div>
+            <div class="data-line">
+                <span class="label">ISP:</span>
+                <span id="isp" class="value"></span>
+            </div>
+        </div>
+        <hr>
+        <p class="FUCK SOCIETY">// Brian Moser: Leaked public IP data. //</p>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Simulate initial boot sequence
+            const bootLines = $('#initial-boot-sequence .boot-line').length;
+            let currentBootLine = 0;
+
+            const bootInterval = setInterval(() => {
+                currentBootLine++;
+                if (currentBootLine >= bootLines) {
+                    clearInterval(bootInterval);
+                    setTimeout(() => {
+                        $('#initial-boot-sequence').fadeOut(500, function() {
+                            $(this).remove(); // Remove boot sequence from DOM after fade out
+                            $('.terminal-window').fadeIn(800); // Fade in the main terminal window
+                            fetchLocationData();
+                        });
+                    }, 500); // Wait a bit after last boot line appears
+                }
+            }, 1000); // Each boot line appears after 1 second
+
+            function fetchLocationData() {
+                $.getJSON("https://ipapi.co/json/", function(data) {
+                    $("#ip_address").text(data.ip);
+                    $("#country_name").text(data.country_name);
+                    $("#region_name").text(data.region);
+                    $("#city_name").text(data.city);
+                    $("#latitude").text(data.latitude);
+                    $("#longitude").text(data.longitude);
+                    $("#postal_code").text(data.postal);
+                    $("#timezone").text(data.timezone);
+                    $("#isp").text(data.org);
+
+                    // Fade out status message and fade in data container
+                    $("#status-message").fadeOut(500, function() {
+                        $("#data-container").fadeIn(800);
+                    });
+                }).fail(function() {
+                    $("#status-message").html("/// ERROR: DATA STREAM INTERRUPTED ///<br>Please check connection or try again.");
+                    $("#status-message").css('color', '#FF0000'); // Red error color
+                    $("#status-message").css('text-shadow', '0 0 8px rgba(255, 0, 0, 0.8)');
+                    $("#status-message").show(); // Ensure error message is visible
+                });
+            }
+        });
+    </script>
+</body> 
+</html>
